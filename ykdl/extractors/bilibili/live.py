@@ -62,21 +62,24 @@ class BiliLive(Extractor):
             data = data['data']['playurl_info']['playurl']
             g_qn_desc = {x['qn']: x['desc'] for x in data['g_qn_desc']}
             
+            aqlts = {}
+            minqlt = 10000            
             for stream in data['stream']:
                 for format in stream['format']:
                     for codec in format['codec']:
                         url_info = random.choice(codec['url_info'])
                         urls = [url_info['host']+codec['base_url']+url_info['extra']]
                         qlt = codec['current_qn']
-                        aqlts = {x: g_qn_desc[x] for x in codec['accept_qn']}
+                        minqlt = min(minqlt, qlt)
+                        aqlts.update({x: g_qn_desc[x] for x in codec['accept_qn']})
                         size = float('inf')
                         if 'http_stream' in stream['protocol_name']:
                             ext = 'flv'
                         elif 'http_hls' in stream['protocol_name']:
                             ext = 'm3u8'
-                        prf = aqlts[qlt]
+                        prf = g_qn_desc[qlt]
                         st = '%s-%s-%s-%s' % (self.profile_2_id[prf], stream['protocol_name'], format['format_name'], codec['codec_name'])
-                        if urls:
+                        if st not in info.streams and urls:
                             info.streams[st] = {
                                 'container': ext,
                                 'video_profile': prf,
@@ -85,7 +88,7 @@ class BiliLive(Extractor):
                             }
 
             if qn == 1:
-                del aqlts[qlt]
+                del aqlts[minqlt]
                 for aqlt in aqlts:
                     get_live_info(aqlt)
 
